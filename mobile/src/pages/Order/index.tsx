@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 
@@ -7,12 +7,15 @@ import {
     Text, 
     StyleSheet,
     TouchableOpacity,
-    TextInput
+    TextInput,
+    Modal,
  } from 'react-native';
 
 import { Feather } from "@expo/vector-icons";
 
 import { api } from '../../services/api';
+
+import { ModalPicker } from '../../components/ModalPicker';
 
 type RouteDetailProps = {
     Order: {
@@ -21,12 +24,60 @@ type RouteDetailProps = {
     };
 }
 
+export type CategoryProps = {
+    id: string;
+    name: string;
+}
+
+export type ProductProps = {
+    id: string;
+    name: string;
+}
+
 type OrderRouteProps = RouteProp<RouteDetailProps, 'Order'>;
 
 export default function Order(){
     const navigation = useNavigation();
 
     const route = useRoute<OrderRouteProps>();
+
+    const [category, setCategory] = useState<CategoryProps[] | []>([]);
+    const [categorySelected, setCategorySelected] = useState<CategoryProps | undefined>()
+    const [modalCategoryVisible, setModalCategoryVisible] = useState(false);
+
+    const [product, setProduct] = useState<ProductProps[] | []>([]);
+    const [productSelected, setProductSelected] = useState<ProductProps | undefined>()
+    const [modalProductVisible, setModalProductVisible] = useState(false);
+
+    const [amount, setAmount] = useState('1')
+
+    useEffect(() => {
+        async function loadInfo(){
+            const response = await api.get('/category');
+
+            setCategory(response.data);
+            setCategorySelected(response.data[0]);
+        }
+
+        loadInfo();
+    }, []);
+
+    useEffect(() => {
+
+        async function loadProducts() {
+            const response = await api.get('/category/product', {
+                params: {
+                    category_id: categorySelected?.id,
+                }
+            });
+
+            setProduct(response.data);
+            setProductSelected(response.data[0])
+        }
+
+        loadProducts();
+
+    }, [categorySelected])
 
     async function handleCloseOrder(){
         try{
@@ -45,6 +96,14 @@ export default function Order(){
 
     }
 
+    function handelChangeCategory(item: CategoryProps){
+        setCategorySelected(item)
+    }
+
+    function handleChangeProduct(item: ProductProps){
+        setProductSelected(item);
+    }
+
     return(
         <View style={styles.container}>
             
@@ -57,13 +116,23 @@ export default function Order(){
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.input}>
-                <Text style={{color: '#fff'}} >Pizzas</Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity style={styles.input}>
-                <Text style={{color: '#fff'}}>Pizza de Calabresa</Text>
-            </TouchableOpacity>
+            {category.length !== 0 && (
+                <TouchableOpacity style={styles.input} onPress={() => setModalCategoryVisible(true)}>
+                    <Text style={{color: '#fff'}} >
+                        {categorySelected?.name}
+                    </Text>
+                </TouchableOpacity>
+            )}
+
+            {product.length !== 0 && (
+                <TouchableOpacity style={styles.input} onPress={() => setModalProductVisible(true)}>
+                    <Text style={{color: '#fff'}}>
+                        {productSelected?.name}
+                    </Text>
+                </TouchableOpacity>
+            )}
+
 
             <View style={styles.qtdContainer}>
                 <Text style={styles.qtdText}>Quantidade</Text>
@@ -71,7 +140,9 @@ export default function Order(){
                     style={[styles.input, {width: '60%', textAlign: 'center'}]}
                     placeholder='1'
                     placeholderTextColor="#f0f0f0"
-                    keyboardType='numeric' 
+                    keyboardType='numeric'
+                    value={amount}
+                    onChangeText={setAmount} 
                 />
             </View>
 
@@ -84,6 +155,30 @@ export default function Order(){
                     <Text style={styles.buttonText}>Avançar</Text>
                 </TouchableOpacity>
             </View>
+
+            <Modal
+                transparent={true}
+                visible={modalCategoryVisible}
+                animationType="fade"
+            >
+                <ModalPicker
+                    handleCloseModal={() => setModalCategoryVisible(false)}
+                    options={category}
+                    selectedItem={handelChangeCategory} 
+                />
+            </Modal>
+
+            <Modal
+                transparent={true}
+                visible={modalProductVisible}
+                animationType="fade"
+            >
+                <ModalPicker
+                    handleCloseModal={() => setModalProductVisible(false)} 
+                    options={product}
+                    selectedItem={ handleChangeProduct }
+                />
+            </Modal>
 
         </View>
     )
